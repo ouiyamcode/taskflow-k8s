@@ -40,7 +40,7 @@ graph TD
     Tasks -->|HTTP 8081 to 5000| Auth
 
     %% Auth sidecar
-    Auth -->|sidecar localhost 9090| Audit[audit-sidecar<br/>hashicorp/http-echo:9090]
+    Auth -->|sidecar localhost:9090| Audit[audit-sidecar<br/>hashicorp/http-echo:9090]
 
     %% Tasks sidecar
     Tasks -->|sidecar| Health[health-checker<br/>curlimages/curl<br/>loop curl metrics:5001]
