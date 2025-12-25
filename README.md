@@ -21,7 +21,7 @@ graph LR
     Frontend[frontend<br/>nginx:1.25-alpine:80]
     Gateway[api-gateway<br/>nginx:1.25-alpine:3000]
 
-    Frontend -->|HTTP 80→3000| Gateway
+    Frontend -->|HTTP 80 to 3000| Gateway
   end
 
   %% Backend namespace
@@ -47,13 +47,11 @@ graph LR
     end
 
     %% Communications
-    Gateway -->|HTTP 3000→5000| Auth
-    Gateway -->|HTTP 3000→8081| Tasks
-    Gateway -->|HTTP 3000→3001| Notifications
-    Gateway -->|HTTP 3000→5001| Metrics
+    Gateway -->|HTTP 3000 to 5000| Auth
+    Gateway -->|HTTP 3000 to 8081| Tasks
+    Gateway -->|HTTP 3000 to 3001| Notifications
+    Gateway -->|HTTP 3000 to 5001| Metrics
 
-    Tasks -->|HTTP 8081→5000| Auth
-    Health -->|HTTP 5001 (external service)| Metrics
+    Tasks -->|HTTP 8081 to 5000| Auth
+    Health -->|HTTP to metrics 5001| Metrics
   end
-
-
