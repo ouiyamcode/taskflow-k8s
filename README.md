@@ -27,6 +27,9 @@ graph TD
   %% Backend namespace
   subgraph taskflow-backend
 
+    %% Metrics service (standalone pod)
+    Metrics[metrics<br/>hashicorp/http-echo:5001]
+
     %% Auth pod
     subgraph AuthPod["auth pod"]
       Auth[auth<br/>hashicorp/http-echo:5000]
@@ -45,7 +48,6 @@ graph TD
 
     %% Other backend services
     Notifications[notifications<br/>hashicorp/http-echo:3001]
-    Metrics[metrics<br/>hashicorp/http-echo:5001]
 
     %% Gateway to backend communication
     Gateway -->|HTTP 3000→5000| Auth
