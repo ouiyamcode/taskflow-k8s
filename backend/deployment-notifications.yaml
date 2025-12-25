@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications
+  namespace: taskflow-backend
+  labels:
+    app: notifications
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notifications
+  template:
+    metadata:
+      labels:
+        app: notifications
+        tier: backend
+    spec:
+      containers:
+      - name: notifications
+        image: hashicorp/http-echo:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - "-text=Notifications Service"
+        - "-listen=:3001"
+        ports:
+        - containerPort: 3001
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        volumeMounts:
+        - name: backend-config
+          mountPath: /etc/backend-config
+          readOnly: true
+      volumes:
+      - name: backend-config
+        configMap:
+         name: backend-config

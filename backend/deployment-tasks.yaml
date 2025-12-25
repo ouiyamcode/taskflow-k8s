@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tasks
+  namespace: taskflow-backend
+  labels:
+    app: tasks
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tasks
+  template: 
+    metadata:
+      labels:
+        app: tasks
+        tier: backend
+    spec:
+      initContainers:
+      - name: wait-for-auth
+        image: busybox:1.28
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for auth service..."
+          until nslookup auth-svc.taskflow-backend.svc.cluster.local; do
+            echo "Auth not ready, waiting..."
+            sleep 3
+          done
+          echo "Auth is ready!"
+      containers:
+      - name: tasks
+        image: hashicorp/http-echo:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - "-text=Tasks Service"
+        - "-listen=:8081"
+        ports:
+        - containerPort: 8081
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        volumeMounts:
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        - name: backend-config
+          mountPath: /etc/backend-config
+          readOnly: true
+      - name: health-checker
+        image: curlimages/curl:latest
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh 
+          - -c
+          - |
+            while true; do
+              curl -s http://metrics-svc:5001 || echo "Metrics unreachable"
+              sleep 5
+            done
+      volumes:
+      - name: secrets
+        secret:
+          secretName: api-keys
+      - name: backend-config
+        configMap:
+          name: backend-config
+
+
+

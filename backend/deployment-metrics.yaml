@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics
+  namespace: taskflow-backend
+  labels:
+    app: metrics
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: metrics
+  template:
+    metadata:
+      labels:
+        app: metrics
+        tier: backend
+    spec:
+      containers:
+      - name: metrics
+        image: hashicorp/http-echo:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - "-text=Metrics Service"
+        - "-listen=:5001"
+        ports:
+        - containerPort: 5001
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5001
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        volumeMounts:
+        - name: backend-config
+          mountPath: /etc/backend-config
+          readOnly: true
+      volumes:
+      - name: backend-config
+        configMap:
+          name: backend-config
+        
+

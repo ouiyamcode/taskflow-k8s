@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-gateway-config
+  namespace: taskflow-frontend
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      access_log /dev/stdout;
+      error_log /dev/stderr;
+
+      # Upstream for auth - YOU MUST ADD THE OTHERS
+      upstream auth {
+        server auth-svc.taskflow-backend.svc.cluster.local:5000;
+      }
+      
+      # TODO: Add upstream for tasks (port 8081)
+      upstream tasks {
+        server tasks-svc.taskflow-backend.svc.cluster.local:8081;
+      }  
+      
+      # TODO: Add upstream for notifications (port 3001)
+      upstream notifications {
+        server notifications-svc.taskflow-backend.svc.cluster.local:3001;
+      }
+
+      # TODO: Add upstream for metrics (port 5001)
+      upstream metrics {
+        server metrics-svc.taskflow-backend.svc.cluster.local:5001;
+      }
+
+      server {
+        listen 3000;
+
+        location /health {
+          return 200 "Gateway healthy\n";
+          add_header Content-Type text/plain;
+        }
+
+        # Route for auth - YOU MUST ADD THE OTHERS
+        location /auth {
+          proxy_pass http://auth;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        # TODO: Add location /tasks
+        location /tasks {
+          proxy_pass http://tasks;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+        # TODO: Add location /notifications
+        location /notifications {
+          proxy_pass http://notifications;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+        # TODO: Add location /metrics
+        location /metrics {
+          proxy_pass http://metrics;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location / {
+          return 200 "TaskFlow API Gateway\n";
+          add_header Content-Type text/plain;
+        }
+      }
+    }

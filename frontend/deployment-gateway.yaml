@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: taskflow-frontend
+  labels:
+    app: gateway
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+        tier: frontend
+    spec: 
+      initContainers:
+      - name: wait-for-backend
+        image: busybox:1.28
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - | 
+          echo "Waiting for auth service..."
+          until nslookup auth-svc.taskflow-backend.svc.cluster.local; do
+            echo "Auth not ready, waiting..."
+            sleep 3
+          done
+          echo "Auth is ready!"
+
+          echo "Waiting for tasks service..."
+          until nslookup tasks-svc.taskflow-backend.svc.cluster.local; do
+            echo "Tasks not ready, waiting..."
+            sleep 3
+          done
+          echo "Tasks is ready!"
+
+          echo "Waiting for notifications service..."
+          until nslookup notifications-svc.taskflow-backend.svc.cluster.local; do
+            echo "Notifications not ready, waiting..."
+            sleep 3
+          done
+          echo "Notifications is ready!"
+
+          echo "Waiting for metrics service..."
+          until nslookup metrics-svc.taskflow-backend.svc.cluster.local; do
+            echo "Metrics not ready, waiting..."
+            sleep 3
+          done
+          echo "Metrics is ready!"
+          
+          echo "All backend services are ready" 
+      containers:
+      - name: nginx
+        image: nginx:1.25-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+          name: http
+        volumeMounts:
+        - name: gateway-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources: 
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 3
+      volumes:
+      - name: gateway-config 
+        configMap:
+          name: nginx-gateway-config

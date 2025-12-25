@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: taskflow-backend
+data:
+  LOG_LEVEL: "info"
+  ENVIRONMENT: "production"

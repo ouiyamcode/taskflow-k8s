@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taskflow-frontend
+  labels:
+    name: taskflow-frontend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taskflow-backend

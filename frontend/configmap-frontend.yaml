@@ -1,0 +1,253 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: taskflow-frontend
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+    http {
+      include /etc/nginx/mime.types;
+      server {
+        listen 80;
+        root /usr/share/nginx/html;
+        index index.html;
+        location / {
+          try_files $uri $uri/ /index.html;
+        }
+        location /api/ {
+          proxy_pass http://api-gateway-svc:3000/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_connect_timeout 3s;
+          proxy_read_timeout 3s;
+        }
+      }
+    }
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>TaskFlow - Microservices Dashboard</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+          min-height: 100vh; color: #fff; padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+          text-align: center; margin-bottom: 10px; font-size: 2.5em;
+          background: linear-gradient(90deg, #00d9ff, #00ff88);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+        .architecture {
+          background: #0f0f23; border-radius: 15px; padding: 20px;
+          margin-bottom: 30px; font-family: monospace; font-size: 12px;
+          white-space: pre; overflow-x: auto; border: 1px solid #333;
+        }
+        .grid {
+          display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 20px; margin-bottom: 30px;
+        }
+        .card {
+          background: #1e1e3f; border-radius: 15px; padding: 25px;
+          border: 1px solid #333; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .card-title { font-size: 1.3em; font-weight: 600; }
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600; }
+        .status-ok { background: #00ff88; color: #000; }
+        .status-error { background: #ff4757; color: #fff; }
+        .status-loading { background: #ffa502; color: #000; }
+        .card-info { color: #888; font-size: 0.9em; margin-bottom: 10px; }
+        .card-response {
+          background: #0f0f23; padding: 12px; border-radius: 8px;
+          font-family: monospace; font-size: 0.85em; word-break: break-all;
+          max-height: 80px; overflow-y: auto;
+        }
+        .btn {
+          background: linear-gradient(90deg, #00d9ff, #00ff88);
+          border: none; padding: 15px 40px; font-size: 1.1em; font-weight: 600;
+          color: #000; border-radius: 30px; cursor: pointer;
+          display: block; margin: 0 auto; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(0,255,136,0.4); }
+        .btn:disabled { background: #555; cursor: not-allowed; transform: none; }
+        .section-title { font-size: 1.5em; margin: 30px 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #333; }
+        .legend { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .stats { display: flex; justify-content: center; gap: 40px; margin: 20px 0; flex-wrap: wrap; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 2em; font-weight: bold; }
+        .stat-label { color: #888; }
+        .namespace-tag { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 0.75em; margin-left: 10px; }
+        .ns-frontend { background: #00d9ff33; color: #00d9ff; }
+        .ns-backend { background: #ff475733; color: #ff4757; }
+        .sidecar-info { margin-top: 10px; padding: 8px; background: #2a2a4a; border-radius: 5px; font-size: 0.85em; }
+        .blocked { border: 2px dashed #ff4757; opacity: 0.7; }
+        .blocked .card-title::after { content: " (BLOCKED)"; color: #ff4757; font-size: 0.7em; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>TaskFlow Dashboard</h1>
+        <p class="subtitle">Microservices Architecture on Kubernetes</p>
+        <div class="architecture">
+                          EXTERNAL ACCESS (You are here!)
+                                    |
+                                    v
+                          +-------------------+
+                          |  NodePort :30080  |
+                          +-------------------+
+                                    |
+    ================================|======================================
+        NAMESPACE: taskflow-frontend|
+                                    v
+                          +-------------------+
+                          |     FRONTEND      |-----> You are viewing this!
+                          |    (nginx:80)     |
+                          +-------------------+
+                                    |
+                                    v
+                          +-------------------+
+                          |   API GATEWAY     |-----> Routes /auth /tasks etc.
+                          |   (nginx:3000)    |
+                          +-------------------+
+                                    |
+    ================================|======================================
+        NAMESPACE: taskflow-backend |
+                    +---------------+---------------+
+                    |               |               |
+                    v               v               v
+              +-----------+   +-----------+   +--------------+
+              |   AUTH    |<--|   TASKS   |   | NOTIFICATIONS|
+              |   :5000   |   |   :8081   |   |    :3001     |
+              +-----------+   +-----------+   +--------------+
+                                              +--------------+
+                                              |   METRICS    |
+                                              |    :5001     |
+                                              +--------------+
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div> Healthy</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff4757"></div> Error</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ffa502"></div> Loading</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="stat-value" id="stat-ok">-</div><div class="stat-label">Services OK</div></div>
+          <div class="stat"><div class="stat-value" id="stat-error">-</div><div class="stat-label">Errors</div></div>
+          <div class="stat"><div class="stat-value" id="stat-total">-</div><div class="stat-label">Total Checks</div></div>
+        </div>
+        <button class="btn" id="testBtn" onclick="runAllTests()">Test All Services</button>
+        <h2 class="section-title">Frontend Namespace Services</h2>
+        <div class="grid">
+          <div class="card" id="card-gateway">
+            <div class="card-header">
+              <span class="card-title">API Gateway<span class="namespace-tag ns-frontend">taskflow-frontend</span></span>
+              <span class="status-badge status-loading" id="status-gateway">PENDING</span>
+            </div>
+            <div class="card-info">Port: 3000 | Path: /api/health</div>
+            <div class="card-response" id="response-gateway">Click "Test All Services" to check</div>
+          </div>
+        </div>
+        <h2 class="section-title">Backend Namespace Services (via API Gateway)</h2>
+        <div class="grid">
+          <div class="card" id="card-auth">
+            <div class="card-header">
+              <span class="card-title">Auth Service<span class="namespace-tag ns-backend">taskflow-backend</span></span>
+              <span class="status-badge status-loading" id="status-auth">PENDING</span>
+            </div>
+            <div class="card-info">Port: 5000 | Path: /api/auth</div>
+            <div class="card-response" id="response-auth">Click "Test All Services" to check</div>
+            <div class="sidecar-info">Sidecar: audit-sidecar (:9090)</div>
+          </div>
+          <div class="card" id="card-tasks">
+            <div class="card-header">
+              <span class="card-title">Tasks Service<span class="namespace-tag ns-backend">taskflow-backend</span></span>
+              <span class="status-badge status-loading" id="status-tasks">PENDING</span>
+            </div>
+            <div class="card-info">Port: 8081 | Path: /api/tasks</div>
+            <div class="card-response" id="response-tasks">Click "Test All Services" to check</div>
+            <div class="sidecar-info">Sidecar: health-checker (curls metrics)</div>
+          </div>
+          <div class="card" id="card-notifications">
+            <div class="card-header">
+              <span class="card-title">Notifications<span class="namespace-tag ns-backend">taskflow-backend</span></span>
+              <span class="status-badge status-loading" id="status-notifications">PENDING</span>
+            </div>
+            <div class="card-info">Port: 3001 | Path: /api/notifications</div>
+            <div class="card-response" id="response-notifications">Click "Test All Services" to check</div>
+          </div>
+          <div class="card" id="card-metrics">
+            <div class="card-header">
+              <span class="card-title">Metrics Service<span class="namespace-tag ns-backend">taskflow-backend</span></span>
+              <span class="status-badge status-loading" id="status-metrics">PENDING</span>
+            </div>
+            <div class="card-info">Port: 5001 | Path: /api/metrics</div>
+            <div class="card-response" id="response-metrics">Click "Test All Services" to check</div>
+          </div>
+        </div>
+      </div>
+      <script>
+        const services = [
+          { id: 'gateway', path: '/api/health', name: 'API Gateway' },
+          { id: 'auth', path: '/api/auth', name: 'Auth Service' },
+          { id: 'tasks', path: '/api/tasks', name: 'Tasks Service' },
+          { id: 'notifications', path: '/api/notifications', name: 'Notifications' },
+          { id: 'metrics', path: '/api/metrics', name: 'Metrics Service' },
+        ];
+        let results = { ok: 0, error: 0, total: 0 };
+        async function testService(service) {
+          const statusEl = document.getElementById(`status-${service.id}`);
+          const responseEl = document.getElementById(`response-${service.id}`);
+          statusEl.textContent = 'TESTING...';
+          statusEl.className = 'status-badge status-loading';
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(service.path, { signal: controller.signal });
+            clearTimeout(timeout);
+            const text = await response.text();
+            if (response.ok) {
+              statusEl.textContent = 'OK';
+              statusEl.className = 'status-badge status-ok';
+              responseEl.textContent = text.trim();
+              results.ok++;
+            } else { throw new Error(`HTTP ${response.status}`); }
+          } catch (error) {
+            statusEl.textContent = 'ERROR';
+            statusEl.className = 'status-badge status-error';
+            responseEl.textContent = `Error: ${error.message}`;
+            results.error++;
+          }
+          results.total++;
+          updateStats();
+        }
+        function updateStats() {
+          document.getElementById('stat-ok').textContent = results.ok;
+          document.getElementById('stat-error').textContent = results.error;
+          document.getElementById('stat-total').textContent = results.total;
+        }
+        async function runAllTests() {
+          const btn = document.getElementById('testBtn');
+          btn.disabled = true;
+          btn.textContent = 'Testing...';
+          results = { ok: 0, error: 0, total: 0 };
+          updateStats();
+          await Promise.all(services.map(s => testService(s)));
+          btn.disabled = false;
+          btn.textContent = 'Test All Services';
+        }
+        window.onload = () => { setTimeout(runAllTests, 500); };
+      </script>
+    </body>
+    </html>

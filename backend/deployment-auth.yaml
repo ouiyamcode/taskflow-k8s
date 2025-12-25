@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: taskflow-backend
+  labels:
+    app: auth
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth
+  template:
+    metadata:
+      labels:
+        app: auth
+        tier: backend
+    spec:
+      initContainers:
+      - name: wait-for-notifications
+        image: busybox:1.28
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for notifications service..."
+          until nslookup notifications-svc.taskflow-backend.svc.cluster.local; do
+            echo "Notifications not ready, waiting..."
+            sleep 3
+          done
+          echo "Notifications is ready!"
+      containers:
+      - name: auth
+        image: hashicorp/http-echo:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - "-text=Auth Service"
+        - "-listen=:5000"
+        ports:
+        - containerPort: 5000
+          name: http
+        resources: 
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        volumeMounts:
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        - name: backend-config
+          mountPath: /etc/backend-config
+          readOnly: true
+      - name: audit-sidecar
+        image: hashicorp/http-echo:latest
+        imagePullPolicy: IfNotPresent
+        args:
+          - "-text=Audit sidecar"
+          - "-listen=:9090"
+        ports:
+        - containerPort: 9090
+          name: audit
+      volumes:
+      - name: secrets
+        secret:
+          secretName: auth-secrets
+      - name: backend-config
+        configMap:
+          name: backend-config
