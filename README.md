@@ -26,8 +26,24 @@ graph TD
 
   %% Backend namespace
   subgraph taskflow-backend
-    Auth[auth<br/>hashicorp/http-echo:5000]
-    Tasks[tasks<br/>hashicorp/http-echo:8081]
+
+    %% Auth pod
+    subgraph AuthPod["auth pod"]
+      Auth[auth<br/>hashicorp/http-echo:5000]
+      Audit[auth-audit<br/>hashicorp/http-echo:9090]
+
+      Auth -->|localhost:9090| Audit
+    end
+
+    %% Tasks pod
+    subgraph TasksPod["tasks pod"]
+      Tasks[tasks<br/>hashicorp/http-echo:8081]
+      Health[health-checker<br/>curlimages/curl]
+
+      Health -->|HTTP →5001| Metrics
+    end
+
+    %% Other backend services
     Notifications[notifications<br/>hashicorp/http-echo:3001]
     Metrics[metrics<br/>hashicorp/http-echo:5001]
 
@@ -39,11 +55,5 @@ graph TD
 
     %% Internal backend communication
     Tasks -->|HTTP 8081→5000| Auth
-
-    %% Sidecars
-    Audit[auth-audit<br/>hashicorp/http-echo:9090]
-    Health[health-checker<br/>hashicorp/http-echo]
-
-    Auth -->|localhost:9090| Audit
-    Health -->|HTTP →5001| Metrics
   end
+
