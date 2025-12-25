@@ -17,7 +17,7 @@ graph TD
 
   subgraph taskflow-frontend
     Frontend[frontend<br/>nginx:1.25-alpine:80]
-    Gateway[api-gateway<br/>nginx:1.25-alpine:3000]
+    Gateway[gateway<br/>nginx:1.25-alpine:3000]
 
     Frontend -->|HTTP 80 to 3000| Gateway
   end
