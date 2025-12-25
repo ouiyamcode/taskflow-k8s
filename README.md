@@ -24,19 +24,25 @@ graph TD
 
   subgraph taskflow-backend
 
+    %% Main backend services
     Auth[auth<br/>hashicorp/http-echo:5000]
     Tasks[tasks<br/>hashicorp/http-echo:8081]
     Notifications[notifications<br/>hashicorp/http-echo:3001]
     Metrics[metrics<br/>hashicorp/http-echo:5001]
 
+    %% Gateway routing
     Gateway -->|HTTP 3000 to 5000| Auth
     Gateway -->|HTTP 3000 to 8081| Tasks
     Gateway -->|HTTP 3000 to 3001| Notifications
     Gateway -->|HTTP 3000 to 5001| Metrics
 
+    %% Internal backend communication
     Tasks -->|HTTP 8081 to 5000| Auth
 
-    Auth -->|localhost 9090| Audit[audit sidecar]
-    Tasks -->|sidecar| Health[health-checker]
+    %% Auth sidecar
+    Auth -->|localhost 9090| Audit[audit sidecar<br/>hashicorp/http-echo:9090]
+
+    %% Tasks sidecar
+    Tasks -->|sidecar| Health[health-checker<br/>curlimages/curl<br/>loop curl metrics:5001]
     Health -->|HTTP to metrics 5001| Metrics
   end
