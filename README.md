@@ -1,14 +1,24 @@
 # Taskflow Kubernetes Project
 
-This project implements a microservices-based application deployed on Kubernetes, with a strong focus on **network isolation**, **controlled communication**, and **Kubernetes best practices**.
+This project consists of deploying **TaskFlow**, a distributed task management application designed with a **microservices architecture**. All components communicate over HTTP and are deployed on a Kubernetes cluster following best practices.
 
-The system is split into two namespaces (`taskflow-frontend` and `taskflow-backend`) and relies on **NetworkPolicies**, **sidecars**, and **service-based communication** to enforce security, scalability, and observability.
+The application is composed of **six independent services** distributed across **two Kubernetes namespaces** (`taskflow-frontend` and `taskflow-backend`). This separation enables clear responsibility boundaries and enforces controlled communication between frontend and backend components.
+
+The deployment demonstrates:
+- Multi-service Kubernetes deployments using `Deployment` and `Service` resources
+- Secure inter-namespace communication through explicit `NetworkPolicy` rules
+- Secrets management using Kubernetes Secrets mounted as volumes
+- The **sidecar pattern** to extend application behavior without modifying core containers
+- The use of **init containers** to enforce startup dependencies between services
+- Application health monitoring using **liveness and readiness probes**
+
+Together, these elements illustrate a realistic, secure, and production-oriented Kubernetes architecture.
 
 ---
 
 ## Architecture Diagram
 
-The following diagram represents the **actual implemented architecture**, based on the deployed Kubernetes manifests and validated through runtime tests.  
+The following diagram represents the **actual implemented architecture**, based on the deployed Kubernetes manifests and validated through tests.  
 All services are shown with their **container image and exposed port** (`image:port`).
 
 ```mermaid
