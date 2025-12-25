@@ -12,12 +12,12 @@ The following diagram represents the **actual implemented architecture**, based 
 All services are shown with their **container image and exposed port** (`image:port`).
 
 ```mermaid
-graph TD
+graph LR
   %% External access
-  User -->|nginx:1.25-alpine NodePort 30080| Frontend
+  User -->|NodePort 30080| Frontend
 
   %% Frontend namespace
-  subgraph taskflow-frontend
+  subgraph taskflow_frontend["taskflow-frontend namespace"]
     Frontend[frontend<br/>nginx:1.25-alpine:80]
     Gateway[api-gateway<br/>nginx:1.25-alpine:3000]
 
@@ -25,37 +25,35 @@ graph TD
   end
 
   %% Backend namespace
-  subgraph taskflow-backend
-
-    %% Metrics service (standalone pod)
-    Metrics[metrics<br/>hashicorp/http-echo:5001]
+  subgraph taskflow_backend["taskflow-backend namespace"]
 
     %% Auth pod
     subgraph AuthPod["auth pod"]
       Auth[auth<br/>hashicorp/http-echo:5000]
-      Audit[auth-audit<br/>hashicorp/http-echo:9090]
-
-      Auth -->|localhost:9090| Audit
+      Audit[audit sidecar<br/>hashicorp/http-echo:9090]
+      Auth -->|localhost| Audit
     end
 
     %% Tasks pod
     subgraph TasksPod["tasks pod"]
       Tasks[tasks<br/>hashicorp/http-echo:8081]
-      Health[health-checker<br/>curlimages/curl]
-
-      Health -->|HTTP →5001| Metrics
+      Health[health-checker sidecar<br/>curlimages/curl]
     end
 
-    %% Other backend services
-    Notifications[notifications<br/>hashicorp/http-echo:3001]
+    %% Standalone backend services
+    subgraph BackendServices["backend services"]
+      Metrics[metrics<br/>hashicorp/http-echo:5001]
+      Notifications[notifications<br/>hashicorp/http-echo:3001]
+    end
 
-    %% Gateway to backend communication
+    %% Communications
     Gateway -->|HTTP 3000→5000| Auth
     Gateway -->|HTTP 3000→8081| Tasks
     Gateway -->|HTTP 3000→3001| Notifications
     Gateway -->|HTTP 3000→5001| Metrics
 
-    %% Internal backend communication
     Tasks -->|HTTP 8081→5000| Auth
+    Health -->|HTTP 5001 (external service)| Metrics
   end
+
 
