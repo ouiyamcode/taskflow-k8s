@@ -97,5 +97,26 @@ A test script is available:
 ./test.sh
 ```
 As asked in the requirements, this script does all the tests asked in the validation tab.
+The script performs the following checks:
+  
+  - **STEP 1**: Lists pods in taskflow-backend and taskflow-frontend
+
+  - **STEP 2**: Lists services in both namespaces
+
+  - **STEP 3**: Lists NetworkPolicies in both namespaces
+
+  - **STEP 4**: Tests the gateway API routes through the frontend NodePort (<node-ip>:30080):
+    /api/health, /api/auth, /api/tasks, /api/notifications, /api/metrics
+    If using Minikube, the script automatically gets the node IP using minikube ip
+
+  - **STEP 5**: Validates NetworkPolicies with positive and negative tests:
+    Allowed paths (should work): Frontend → Gateway, Gateway → Auth, Tasks → Auth
+    Denied path (should timeout): Frontend → Auth directly
+
+  - **STEP 6**: Checks sidecar behavior (health-checker logs and accessibility checks)
+
+  - **STEP 7**: Verifies Secrets exist and are mounted in the backend containers
+
+If all steps succeed, the deployment and networking rules are correctly implemented.
 
 
