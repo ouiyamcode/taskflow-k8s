@@ -193,4 +193,47 @@ This communication is enabled by:
 
 All other traffic is denied by default.
 
+---
+
+## Challenges Encountered
+
+### 1) Deployment Order Confusion
+
+**Issue**  
+At the beginning of the project, there was uncertainty about the correct order in which Kubernetes resources should be applied.  
+It was unclear whether Deployments, Services, ConfigMaps, or Secrets needed to be created first.
+
+**Root Cause**  
+While Kubernetes does not enforce a strict deployment order, some dependencies exist in practice:
+- Init containers rely on **DNS resolution and existing Services**
+- Pods mounting **Secrets or ConfigMaps** require them to exist before pod creation
+
+Applying resources in the wrong order can therefore lead to pods failing to start or being stuck in initialization.
+
+**Resolution**  
+A clear and reliable deployment order was adopted and used consistently:
+
+1. Namespaces  
+2. Secrets  
+3. ConfigMaps  
+4. Services  
+5. Deployments  
+6. NetworkPolicies  
+
+Following this order ensured that all dependencies were available when pods started, eliminating initialization and mounting issues.
+
+### 2) Inability to Use `ls` Inside Containers
+
+**Issue**  
+During the secrets verification step, the following command failed:
+
+```bash
+kubectl exec -n taskflow-backend deploy/auth -c auth -- ls /etc/secrets
+```
+Result error:
+```bash
+OCI runtime exec failed: exec failed: unable to start container process:
+exec: "ls": executable file not found in $PATH: unknown
+command terminated with exit code 127
+```
 
