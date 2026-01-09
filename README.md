@@ -237,3 +237,131 @@ exec: "ls": executable file not found in $PATH: unknown
 command terminated with exit code 127
 ```
 
+This initially suggested that secrets were not correctly mounted or accessible inside the container.
+
+**Root Cause**  
+The `auth` container uses the `hashicorp/http-echo` image, which is an **extremely minimal container image**.  
+This image does not include common shell utilities such as:
+- `ls`
+- `sh`
+- `cat`
+
+As a result, any attempt to execute these commands inside the container fails, even though the container itself is running correctly.
+
+**Resolution**  
+The issue was not related to Kubernetes Secrets or volume mounts.  
+Instead, it was a normal and expected behavior of minimal container images.
+
+Secrets were validated indirectly by:
+- Ensuring pods started successfully
+- Verifying application behavior
+- Using sidecars and HTTP-based checks instead of filesystem inspection
+
+This highlighted an important Kubernetes concept: **minimal images increase security and reduce attack surface but limit interactive debugging inside containers**.
+
+### 3) YAML Indentation and Structure Errors
+
+**Issue**  
+While deploying backend services, Kubernetes returned errors such as:
+
+```bash
+unknown field "spec.template.volumes"
+```
+
+or resources failed to apply without clear runtime errors.
+
+**Root Cause**  
+These errors were caused by incorrect YAML indentation and structure:
+- `volumes` was defined at the wrong level in the manifest
+- `volumeMounts` was not correctly nested under the container definition
+
+Because YAML is indentation-sensitive, even a small misalignment causes Kubernetes to reject or misinterpret the manifest.
+
+**Resolution**  
+The manifests were corrected by strictly following the required Kubernetes structure, ensuring that:
+- `volumeMounts` are defined **inside** each container
+- `volumes` are defined at the **pod spec level**
+
+Correct structure example:
+
+```yaml
+spec:
+  containers:
+  - name: app
+    volumeMounts:
+    - name: secrets
+      mountPath: /etc/secrets
+  volumes:
+  - name: secrets
+    secret:
+      secretName: auth-secrets
+```
+After fixing the indentation and structure, the manifests applied correctly and pods started without errors.
+This reinforced the importance of YAML precision when working with Kubernetes manifests.
+
+### 4) Confusion Between Secret Names and Volume Names
+
+**Issue**  
+There was confusion about why the name `secrets` was used in the Deployment manifests even though no Kubernetes Secret was explicitly named `secrets`.
+
+This raised questions such as:
+- “Why am I mounting `secrets` when my Secret has a different name?”
+- “Is Kubernetes creating a Secret automatically?”
+
+**Root Cause**  
+The confusion came from mixing up two different concepts:
+- The **Kubernetes Secret name** (`metadata.name`)
+- The **volume name**, which is an internal and arbitrary identifier
+
+In Kubernetes:
+- The volume name is freely chosen and only used to link `volumes` and `volumeMounts`
+- The actual Secret referenced is defined by `secretName`
+
+**Key Rule to Remember**
+
+volumeMounts.name == volumes.name
+secretName == metadata.name (of the Secret)
+
+The volume name (`secrets`) is simply an internal alias and does not need to match the Secret name.
+
+**Resolution**  
+Once this distinction was clearly understood, volume and secret definitions became consistent and predictable.  
+This eliminated confusion and ensured correct Secret mounting across all deployments.
+
+### 5) ImagePullBackOff and Docker Image Pull Failures
+
+**Issue**  
+Some pods failed to start and were stuck in the `ImagePullBackOff` state with errors similar to:
+
+```bash
+dial tcp: lookup registry-1.docker.io: i/o timeout
+```
+
+
+This initially suggested a problem with image names, tags, or authentication.
+
+**Root Cause**  
+The Kubernetes cluster was running on **Minikube without reliable internet access**.  
+As a result, the cluster could not reach Docker Hub to pull container images.
+
+This was not related to:
+- Docker credentials
+- Invalid image names
+- Kubernetes configuration errors
+
+**Resolution**  
+The issue was resolved by loading images **locally** into Minikube:
+
+```bash
+docker pull <image>
+minikube image load <image>
+```
+
+All deployments were then configured with:
+```yaml
+imagePullPolicy: IfNotPresent
+```
+This ensured that Kubernetes reused locally available images instead of attempting to pull them from an external registry.
+This solution made the deployment fully functional in an offline or restricted network environment and simplified local development.
+
+
