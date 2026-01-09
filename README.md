@@ -57,7 +57,7 @@ graph TD
     Health -->|HTTP to metrics 5001| Metrics
 
   end
-
+```
 ---
 
 ## Deployment Instructions
