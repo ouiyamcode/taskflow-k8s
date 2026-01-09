@@ -87,6 +87,8 @@ Or you can use at your convenience any other solution.
 ```
 This will setup automatically all the project.
 
+---
+
 ## Test the project
 
 A test script is available:
