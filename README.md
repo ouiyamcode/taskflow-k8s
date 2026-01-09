@@ -55,4 +55,45 @@ graph TD
     %% Tasks sidecar
     Tasks -->|sidecar| Health[health-checker<br/>curlimages/curl<br/>loop curl metrics:5001]
     Health -->|HTTP to metrics 5001| Metrics
+
   end
+
+---
+
+## Deployment Instructions
+
+The application was deployed using **Minikube** as a local Kubernetes cluster.  
+All container images were **pulled and used locally**, which simplified development and testing by avoiding external registry dependencies.
+
+This setup allows the entire project to run in a fully local environment while still reflecting real-world Kubernetes deployment practices.
+
+### Prerequisites
+
+- Docker
+- kubectl
+- Minikube (or any other equivalent solution)
+
+### Start the Kubernetes cluster
+
+```bash
+minikube start --cni=calico
+
+Or you can use at your convenience any other solution.
+
+### Deploy the project
+
+```bash
+./deploy.sh
+
+This will setup automatically all the project.
+
+## Test the project
+
+A test script is available:
+
+```bash
+./test.sh
+
+As asked in the requirements, this script does all the tests asked in the validation tab.
+
+
