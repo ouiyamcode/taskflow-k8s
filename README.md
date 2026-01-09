@@ -337,7 +337,6 @@ Some pods failed to start and were stuck in the `ImagePullBackOff` state with er
 dial tcp: lookup registry-1.docker.io: i/o timeout
 ```
 
-
 This initially suggested a problem with image names, tags, or authentication.
 
 **Root Cause**  
@@ -363,5 +362,155 @@ imagePullPolicy: IfNotPresent
 ```
 This ensured that Kubernetes reused locally available images instead of attempting to pull them from an external registry.
 This solution made the deployment fully functional in an offline or restricted network environment and simplified local development.
+
+### 6) Pods Stuck in `Init:0/1` State
+
+**Issue**  
+Some backend pods, especially `auth` and `tasks`, were stuck in the following state:
+
+```bash
+Init:0/1
+```
+
+while other services such as `metrics` and `notifications` were running normally.
+This made it appear as if the Deployments were broken or misconfigured.
+
+**Root Cause**  
+The affected pods used **init containers** that waited for other services to become available using commands such as:
+
+```bash
+nslookup auth-svc.taskflow-backend.svc.cluster.local
+```
+
+Because DNS traffic was blocked by NetworkPolicies at that stage, the init containers were unable to resolve service names.  
+As a result:
+- The init containers never completed
+- The main containers never started
+- The pods remained stuck in `Init:0/1`
+
+**Resolution**  
+The issue was resolved by explicitly allowing DNS traffic through NetworkPolicies (UDP/TCP port 53).  
+Once DNS egress was permitted:
+- Service names resolved correctly
+- Init containers completed
+- Pods transitioned to the `Running` state
+
+This highlighted how **init containers are tightly coupled to network availability and DNS resolution** in Kubernetes.
+
+### 7) Network Issues After Restarting Minikube with Calico
+
+**Issue**  
+The cluster was working correctly at first, but after restarting Minikube with Calico enabled, multiple services suddenly stopped working.  
+Pods became stuck, services were unreachable, and communication that previously worked started failing.
+
+It initially looked like the restart “broke everything”.
+
+**Root Cause**  
+The key difference was the CNI behavior:
+
+- **Before Calico:** the cluster networking did not enforce NetworkPolicies (they were effectively ignored)
+- **After enabling Calico:** NetworkPolicies were **fully enforced**
+
+Once Calico was active, the backend **default-deny** policy immediately started blocking:
+- DNS resolution
+- service-to-service traffic
+- init container dependencies
+
+This behavior was expected and revealed that the networking rules were now being applied “for real”.
+
+**Resolution**  
+The solution was to add explicit allow policies for the required traffic:
+- DNS egress (UDP/TCP 53)
+- Gateway → Backend ingress
+- Tasks → Auth communication
+- Tasks → Metrics communication
+
+After these allow rules were in place, all services became reachable again and pods started normally.
+
+This challenge demonstrated the real impact of using a CNI that properly enforces NetworkPolicies.
+
+### 8) Default-Deny NetworkPolicy Appearing Ineffective
+
+**Issue**  
+Even after applying a default-deny NetworkPolicy in the backend namespace, the frontend was still able to access backend services directly.  
+This gave the impression that the default-deny policy was not working.
+
+**Root Cause**  
+The default-deny NetworkPolicy was applied only to the following namespace:
+
+`namespace: taskflow-backend`
+
+NetworkPolicies are **namespace-scoped**.  
+This means:
+- The policy affected only pods inside `taskflow-backend`
+- It did **not** apply to pods running in `taskflow-frontend`
+
+As a result, frontend pods were still allowed to initiate connections to the backend unless an explicit **ingress policy** blocked them.
+
+**Resolution**  
+Ingress rules were added to the backend namespace to explicitly control which pods were allowed to reach backend services.  
+Only the API gateway pod was authorized to access backend services, while all other direct access was denied.
+
+This clarified an important Kubernetes concept: **NetworkPolicies never cross namespaces unless explicitly defined**.
+
+### 9) Mandatory DNS NetworkPolicy
+
+**Issue**  
+Several pods were unable to start or communicate correctly, and commands such as `nslookup` failed inside init containers.  
+Service discovery using Kubernetes DNS stopped working entirely.
+
+This caused:
+- Init containers to block indefinitely
+- Pods to remain stuck in `Init` state
+- Services to appear unreachable
+
+**Root Cause**  
+The backend namespace was protected by a **default-deny** NetworkPolicy that blocked all egress traffic by default.  
+DNS resolution in Kubernetes relies on **UDP/TCP port 53**, which was therefore blocked.
+
+Without DNS access, pods could not resolve service names such as:
+
+`auth-svc.taskflow-backend.svc.cluster.local`
+
+**Resolution**  
+An explicit DNS egress NetworkPolicy was added to allow traffic on port **53 (UDP/TCP)** for all backend pods.
+
+Once DNS traffic was permitted:
+- Service names resolved correctly
+- Init containers completed successfully
+- Pods transitioned to the `Running` state
+
+This demonstrated that **DNS access is mandatory for Kubernetes to function correctly**, especially in a default-deny networking model.
+
+### 10) Perception of “Everything Breaking” While the Architecture Was Correct
+
+**Issue**  
+At several points during the project, it felt like the entire deployment was broken:
+- Pods were stuck
+- Services were unreachable
+- Network communication failed unexpectedly
+
+This created the impression that the manifests or the overall architecture were incorrect.
+
+**Root Cause**  
+In reality, the architecture and manifests were sound.  
+The issues became visible because multiple strict Kubernetes features were combined:
+
+- Calico actively enforcing NetworkPolicies
+- A default-deny networking model
+- Init containers depending on DNS and service availability
+- Minimal container images offering limited debugging capabilities
+
+Together, these elements made failures very explicit and sometimes abrupt, without Kubernetes providing clear, high-level error messages.
+
+**Resolution**  
+By addressing each dependency step by step (DNS, ingress rules, egress rules, init container requirements), the system became fully functional without changing the core architecture.
+
+This final challenge highlighted an important lesson:  
+**strict security configurations expose problems earlier, but they also confirm that the design is correct once everything works.**
+
+Overall, the difficulties encountered reinforced a deep understanding of Kubernetes networking, startup flows, and real-world cluster behavior.
+
+
 
 
