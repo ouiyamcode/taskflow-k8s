@@ -77,14 +77,14 @@ This setup allows the entire project to run in a fully local environment while s
 
 ```bash
 minikube start --cni=calico
-
+```
 Or you can use at your convenience any other solution.
 
 ### Deploy the project
 
 ```bash
 ./deploy.sh
-
+```
 This will setup automatically all the project.
 
 ## Test the project
@@ -93,7 +93,7 @@ A test script is available:
 
 ```bash
 ./test.sh
-
+```
 As asked in the requirements, this script does all the tests asked in the validation tab.
 
 
