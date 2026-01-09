@@ -80,6 +80,13 @@ minikube start --cni=calico
 ```
 Or you can use at your convenience any other solution.
 
+It is also important to do:
+
+```bash
+minikube addons enable metrics-server
+```
+In order to enable HPAs to work.
+
 ### Deploy the project
 
 ```bash
