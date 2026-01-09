@@ -119,7 +119,7 @@ The script performs the following checks:
 
 If all steps succeed, the deployment and networking rules are correctly implemented.
 
-You can also see the dashboard in your browser at <node-ip>:30080, and test services like that.
+You can also see the **dashboard** in your browser at <node-ip>:30080, and test services like that.
 
 ---
 
